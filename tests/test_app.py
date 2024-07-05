@@ -3,7 +3,7 @@ import requests
 
 
 def test_get_vacancy_without_name():
-    response = requests.get("http://localhost:8777/vacancy")
+    response = requests.get("http://localhost:8000/vacancy")
     assert response.status_code == 200
     assert response.json() != []
 
@@ -17,7 +17,7 @@ def test_get_vacancy_without_name():
     "junior frontend"
 ])
 def test_get_vacancy_with_name_without_filter(name):
-    response = requests.get(f"http://localhost:8777/vacancy?name={name}")
+    response = requests.get(f"http://localhost:8000/vacancy?name={name}")
     assert response.status_code == 200
     assert response.json() != []
 
@@ -40,6 +40,6 @@ def test_get_vacancy_with_name_with_filter(name: str, salary_from: int, salary_t
         "city": city
     }
     params = {k: v for k, v in params.items() if v is not None}
-    response = requests.get(f"http://localhost:8777/vacancy?name={name}", params=params)
+    response = requests.get(f"http://localhost:8000/vacancy?name={name}", params=params)
     assert response.status_code == 200
     assert response.json() != []
