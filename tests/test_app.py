@@ -25,7 +25,7 @@ def test_get_vacancy_with_name_without_filter(name):
 @pytest.mark.parametrize("name, salary_from, salary_to, employment_status,"
                          "work_experience, employer, city", [
                              ("java", 20000, None, None, None, None, None),
-                             ("грузчик", 20000, 50000, None, None, None, "Мытищи"),
+                             ("грузчик", 60000, 80000, None, None, None, "Барнаул"),
                              ("сантехник", 57000, 90000, "Полная занятость", "От 1 года до 3 лет", "WILDBERRIES", "Рязань"),
 
                          ])
