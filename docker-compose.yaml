@@ -1,0 +1,40 @@
+version: "3.10"
+
+services:
+  parse_project_database:
+    container_name: parse_project_database
+    image: postgres:15.2
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: parse_project_database
+    volumes:
+      - ./parse_project_database:/var/lib/postgresql/data/
+    ports:
+      - "7654:7654"
+    expose:
+      - "7654"
+    command:
+      - "postgres"
+      - "-c"
+      - "port=7654"
+    networks:
+       - db
+
+  parse_project_backend:
+    build:
+      context: ./parse_project_backend
+      dockerfile: Dockerfile
+    container_name: parse_project_backend
+    ports:
+      - "8000:8000"
+    expose:
+      - "8000"
+    depends_on:
+      - parse_project_database
+    networks:
+      - db
+
+networks:
+  db:
+    driver: bridge
