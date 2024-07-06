@@ -34,7 +34,21 @@ services:
       - parse_project_database
     networks:
       - db
+      - tg
 
+  telegram_bot:
+    build:
+      context: ./telegram_bot
+    container_name: telegram_bot
+    volumes:
+      - .:/bot
+    depends_on:
+      - parse_project_database
+      - parse_project_backend
+    networks:
+      - tg
 networks:
   db:
+    driver: bridge
+  tg:
     driver: bridge

@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from database import engine
 import requests
 from sqlalchemy import insert, select, update, delete, or_
@@ -7,7 +8,7 @@ from models import vacancies_table, metadata
 from schema import VacancyFilter
 from typing import Optional, List
 from apscheduler.schedulers.background import BackgroundScheduler
-from parse_project_backend.secret import client_id, client_secret
+from secret import CLIENT_ID, CLIENT_SECRET
 from apscheduler.triggers.interval import IntervalTrigger
 
 access_token = None
@@ -59,14 +60,13 @@ def update_vacancies():
             )
             conn.execute(query)
             conn.commit()
-    print("done")
 
 
 def update_access_token():
     global access_token
     response = requests.post("https://api.hh.ru/token", params={
-        "client_id": client_id,
-        "client_secret": client_secret,
+        "client_id": CLIENT_ID,
+        "client_secret": CLIENT_SECRET,
         "grant_type": "client_credentials"
     }).json()
     access_token = response.get("access_token")
@@ -81,8 +81,8 @@ async def lifespan(app):
     vacancy_update_scheduler.add_job(update_vacancies, IntervalTrigger(hours=12))
     vacancy_update_scheduler.start()
     response = requests.post("https://api.hh.ru/token", params={
-        "client_id": client_id,
-        "client_secret": client_secret,
+        "client_id": CLIENT_ID,
+        "client_secret": CLIENT_SECRET,
         "grant_type": "client_credentials"
     }).json()
     global access_token
@@ -90,7 +90,15 @@ async def lifespan(app):
     yield
 
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Разрешить все источники
+    allow_credentials=True,
+    allow_methods=["*"],  # Разрешить все методы
+    allow_headers=["*"],  # Разрешить все заголовки
+)
 
 
 def add_vacancy(params):
@@ -145,8 +153,9 @@ def get_vacancy(name: Optional[str] = None, salary_from: Optional[int] = None,
                 salary_to: Optional[int] = None, employment_status: Optional[str] = None,
                 work_experience: Optional[str] = None, employer: Optional[str] = None, city: Optional[str] = None):
     with engine.connect() as conn:
-        if name:
-            query = select(vacancies_table).where(or_(vacancies_table.c.name.like(f"%{name.lower()}%"),
+            query = select(vacancies_table)
+            if name:
+                query = query.where(or_(vacancies_table.c.name.like(f"%{name.lower()}%"),
                                                       vacancies_table.c.description.like(f"%{name.lower}%")))
             if salary_from:
                 query = query.where(vacancies_table.c.salary_from >= salary_from)
@@ -160,27 +169,25 @@ def get_vacancy(name: Optional[str] = None, salary_from: Optional[int] = None,
                 query = query.where(vacancies_table.c.employer == employer)
             if city:
                 query = query.where(vacancies_table.c.city == city)
-        else:
-            query = select(vacancies_table)
-        try:
-            result = conn.execute(query).fetchall()
-            if not result:
-                params = {
-                    "text": name,
-                    "salary_from": salary_from,
-                    "salary_to": salary_to,
-                    "employment_status": employment_status,
-                    "work_experience": work_experience,
-                    "employer": employer,
-                    "city": city
-                }
-                params = {k: v for k, v in params.items() if v is not None}
-                add_vacancy(params)
+            try:
                 result = conn.execute(query).fetchall()
-            vacancies = [dict(vacancy._mapping) for vacancy in result]
-            if vacancies:
-                return vacancies
-            else:
-                raise HTTPException(status_code=202, detail={"vacancy not found"})
-        except Exception as e:
-            raise HTTPException(status_code=501, detail=str(e))
+                if not result:
+                    params = {
+                        "text": name,
+                        "salary_from": salary_from,
+                        "salary_to": salary_to,
+                        "employment_status": employment_status,
+                        "work_experience": work_experience,
+                        "employer": employer,
+                        "city": city
+                    }
+                    params = {k: v for k, v in params.items() if v is not None}
+                    add_vacancy(params)
+                    result = conn.execute(query).fetchall()
+                vacancies = [dict(vacancy._mapping) for vacancy in result]
+                if vacancies:
+                    return vacancies
+                else:
+                    raise HTTPException(status_code=202, detail={"vacancy not found"})
+            except Exception as e:
+                raise HTTPException(status_code=501, detail=str(e))
